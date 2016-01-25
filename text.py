@@ -1,18 +1,23 @@
-from pprint import pprint
-
-#todo: Separate nouns list and adjectives
-#todo: Pisano function alternative to LCG
-
-# Hull-Dobell certified
+# LCG constants, Hull-Dobell certified
 m = 2**16
 c = 137
 a = 5
 
 x0 = 1
 
+# Pisano initial state (Galaxy 1!)
+seed0 = 0x5A4A
+seed1 = 0x0248
+seed2 = 0xB753
+
+w0 = seed0
+w1 = seed1
+w2 = seed2
+
+
 nounpairs = [ ("Paul Daniels", "Danielian"),
               ("Ocelot", "Ocelotian"),
-              ("Badger", "Baderian"),
+              ("Badger", "Badgerian"),
               ("Monty", "Montonian"),
               ("The Pope", "Pontifical"),
               ("Kris Akabusi", "Akabusian"),
@@ -67,7 +72,6 @@ def textgen(src):
 
         if oc == 0xC0:
             global adject
-#            out.append( ["Ocelot", "Badger", "President Obama", "Leopard", "Monty", "The Pope", "Kris Akabusi"][rnd%7] )
             noun, adject = getNounPair()
             out.append(noun)
             continue
@@ -88,7 +92,19 @@ def lcg():
 
     return xi >> 8
 
-gen = lcg
+
+def pisano():
+    global w0, w1, w2
+    wtemp = w0 + w1 + w2
+    wtemp &= (1 << 16) - 1
+    w0 = w1
+    w1 = w2
+    w2 = wtemp
+
+    return w2 >> 8
+
+
+gen = pisano
 
 
 def getNounPair():

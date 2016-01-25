@@ -1,0 +1,1 @@
+Goatsoup style text generation.

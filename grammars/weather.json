@@ -1,0 +1,17 @@
+{
+    "__start__": [
+	"{prep} {weekday} {period} {adj} {type} will {source} from the {compass}",
+	"A {odds} {chance} of {duration} of {adj} {type} exists on {weekday} {period} which will {succeed} {type} later"
+    ],
+    "prep": [ "On", "During", "Throughout"],
+    "weekday": [ "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday" ],
+    "period": [ "morning", "afternoon", "evening" ],
+    "adj": [ "light", "heavy", "intermittent", "persistent", "strong", "gentle", "occasional" ],
+    "type": [ "cloud", "rain", "hail", "sleet", "snow", "storms", "showers", "drizzle", "fog", "mist", "frost" ],
+    "source": [ "develop", "arrive", "grow", "accumulate" ],
+    "compass": [ "north", "east", "south", "west" ],
+    "chance": [ "risk", "possibility", "likelihood", "chance" ],
+    "succeed": [ "be followed by", "give way to", "be replaced by", "develop into", "become" ],
+    "odds": [ "faint", "strong", "slight", "substantial", "minor", "marked", "moderate" ],
+    "duration": [ "periods", "episodes", "spells", "outbreaks" ]
+}

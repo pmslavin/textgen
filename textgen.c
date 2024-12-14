@@ -5,25 +5,11 @@
 #include "grammar.h"
 #include "textgen.h"
 
+
 extern symbol **symbolmap;
+unsigned maptop = 0;
 
-const char *map[255][linewidth] = {
-    [0x80] = {"\x81 are \x82 that \x83 are \x84"}
-};
-
-const unsigned maptop = 0x86;
-
-size_t linelen(const char **line){
-    size_t len = 0;
-    while(line[len++]){
-        if(len == linewidth){
-            return linewidth;
-        }
-    }
-    return len-1;
-}
-
-const char *textgen(const char *src){
+const char *textgen(const char *src, const char ***grammar){
     size_t idx = -1;
     size_t outidx = 0;
     size_t block_sz = 32;
@@ -34,7 +20,7 @@ const char *textgen(const char *src){
         if(!c){
             break;
         }
-        if(c < 0x80){
+        if(c < mapbase){
             output[outidx++] = c;
             if(outidx == block_sz){
                 block_sz *= 2;
@@ -42,14 +28,12 @@ const char *textgen(const char *src){
             }
             continue;
         }else if(c < maptop){
-            size_t c_len = linelen(map[c]);
+            size_t c_len = linelen(grammar[c]);
             unsigned lineidx = rand() % c_len;
-            const char *out = textgen(map[(unsigned)c][lineidx]);
+            const char *out = textgen(grammar[(unsigned)c][lineidx], grammar);
             size_t out_sz = strlen(out);
             if(outidx + out_sz >= block_sz){
-                //printf("block_sz: %lu  out_sz: %lu outidx: %lu ", block_sz, out_sz, outidx);
                 block_sz = outidx + out_sz <= 2*block_sz ? 2*block_sz + 1 : outidx + out_sz + 1;
-                //printf("new block_sz: %lu\n", block_sz);
                 output = realloc(output, block_sz);
             }
             strncpy(output+outidx, out, out_sz);
@@ -62,21 +46,12 @@ const char *textgen(const char *src){
     return output;
 }
 
-void print_grammar(const char ***grammar){
-    unsigned mapbase = 0x80;
-    size_t c_len;
-    for(unsigned mapidx=mapbase; mapidx<255; mapidx++){
-        c_len = linelen(grammar[mapidx]);
-        if(c_len == 0){
-            continue;
-        }
-        printf("%x:\n", mapidx);
-        for(size_t idx=0; idx<c_len; idx++){
-            printf("  %s\n", grammar[mapidx][idx]);
-        }
-    }
-
+void set_maptop(const char ***grammar){
+    size_t mapidx = mapbase;
+    while(*grammar[mapidx++]);
+    maptop = mapidx-1;
 }
+
 
 int main(int argc, char *argv[]){
 
@@ -89,20 +64,10 @@ int main(int argc, char *argv[]){
         exit(1);
     }
 
-    // WIP tests
-    const char ***grammar = build_grammar(inputfn);
-    print_grammar(grammar);
-    char **tokens = extract_tokens("$(people) are $(request) that $(item) are $(rule)");
-    if(!tokens){
-        ; // string contains no tokens
-    }
-    free_grammar(grammar);
-
     symbolmap_init(&symbolmap);
-    symbolmap_add("ocelots", 77);
-    symbolmap_add("ocelots", 88);
-    size_t sidx = symbolmap_getidx("ocelots");
-    printf("sidx: %lu\n", sidx);
+    const char ***grammar = build_grammar(inputfn);
+    set_maptop(grammar);
+    //print_grammar(grammar);
 
     srand(0xff);
     unsigned count = 0;
@@ -112,10 +77,12 @@ int main(int argc, char *argv[]){
         count = 1;
     }
     for(unsigned i=0; i<count; i++){
-        const char *output = textgen("\x80.");
+        const char *output = textgen("\x80.", grammar);
         puts(output);
         free((char *)output);
     }
 
+    free_grammar(grammar);
+    symbolmap_free(symbolmap);
     return 0;
 }

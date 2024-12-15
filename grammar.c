@@ -1,3 +1,4 @@
+#define _POSIX_C_SOURCE 200809L  // strndup
 #include <stdint.h>
 #include <string.h>
 
@@ -10,13 +11,19 @@ const char* start_key = "__start__";
 
 const char ***build_grammar(const char *const filename){
     const char ***map = calloc(mapsize, sizeof(char**));
-    const size_t max_textlen = 1024;
-
+    if(!map){
+        fputs("Insufficient memory for grammar.\n", stderr);
+        exit(1);
+    }
     json_error_t json_err = {0};
     json_t *root = json_load_file(filename, 0, &json_err);
 
     for(size_t i=mapbase; i<mapsize; i++){
         map[i] = calloc(linewidth, sizeof(char*));
+        if(!map[i]){
+            fputs("Insufficient memory for grammar.\n", stderr);
+            exit(1);
+        }
     }
 
     const char *key;
@@ -81,18 +88,12 @@ void free_grammar(const char ***grammar){
     free(grammar);
 }
 
-uint32_t fnv1a32_hashstr(const char *str){
-    uint32_t hash = fnv1a32_basis;
-    uint8_t *oct = (uint8_t *)str;
-    while(*oct){
-        hash ^= (uint32_t)*oct++;
-        hash *= fnv1a32_prime;
-    }
-    return hash;
-}
-
 size_t symbolmap_init(symbol ***map){
     *map = calloc(mapsize, sizeof(symbol **));
+    if(!map){
+        fputs("Insufficient memory for symbolmap.\n", stderr);
+        exit(1);
+    }
     return mapsize;
 }
 
@@ -113,7 +114,11 @@ void symbolmap_free(symbol **symbolmap){
 
 void symbolmap_add(const char *symtxt, size_t symidx){
     symbol *s = calloc(1, sizeof(symbol));
-    s->symbol = strndup(symtxt, 64);  // tmplit
+    if(!s){
+        fputs("Insufficient memory for symbol.\n", stderr);
+        exit(1);
+    }
+    s->symbol = strndup(symtxt, max_symbollen);
     s->index = symidx;
     s->next = NULL;
 
@@ -153,6 +158,10 @@ char **extract_symbols(const char *str){
     }
     char *tokstr = strdup(str), *tok = NULL;
     char **tokens = calloc(bufsz, sizeof(char *));
+    if(!tokens){
+        fputs("Insufficient memory for symbol buffer.\n", stderr);
+        exit(1);
+    }
     size_t idx = 0, endidx=0;
 
     tok = strtok(tokstr, start);
@@ -170,7 +179,13 @@ char **extract_symbols(const char *str){
         }
         if(idx == bufsz){
             bufsz *= 2;
-            tokens = realloc(tokens, bufsz*sizeof(char *));
+            char **np = realloc(tokens, bufsz*sizeof(char *));
+            if(!np){
+                fputs("Insufficient memory to grow symbol buffer.\n", stderr);
+                free(tokens);
+                exit(1);
+            }
+            tokens = np;
         }
     }
     if(idx == 0){
@@ -178,7 +193,13 @@ char **extract_symbols(const char *str){
     }
     tokens[idx++] = NULL;
     // Shrink the buffer
-    tokens = realloc(tokens, idx*sizeof(char *));
+    char **np = realloc(tokens, idx*sizeof(char *));
+    if(!np){
+        fputs("Insufficient memory to shrink symbol buffer.\n", stderr);
+        free(tokens);
+        exit(1);
+    }
+    tokens = np;
     free(tokstr);
     return tokens;
 tok_tidy_exit:
@@ -205,6 +226,10 @@ char *patch_symbol_addresses(const char *text){
     size_t symidx = 0;
     size_t txtlen = strlen(text);
     char *patched = calloc(txtlen, sizeof(char));
+    if(!patched){
+        fputs("Insufficient memory for address buffer.\n", stderr);
+        exit(1);
+    }
     char *pnext = patched;
     char *str = (char *)text;
     /*  Note that symbols are extracted above in

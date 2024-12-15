@@ -1,3 +1,4 @@
+#define _POSIX_C_SOURCE 200809L  // strnlen
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,7 +14,12 @@ const char *textgen(const char *src, const char ***grammar){
     size_t idx = -1;
     size_t outidx = 0;
     size_t block_sz = 32;
+    const char* alloc_errtxt = "Insufficient memory for output.\n";
     char *output = calloc(block_sz, sizeof(char));
+    if(!output){
+        fputs(alloc_errtxt, stderr);
+        exit(1);
+    }
 
     while(1){
         unsigned char c = src[++idx];
@@ -24,17 +30,29 @@ const char *textgen(const char *src, const char ***grammar){
             output[outidx++] = c;
             if(outidx == block_sz){
                 block_sz *= 2;
-                output = realloc(output, block_sz);
+                char *np = realloc(output, block_sz);
+                if(!np){
+                    fputs(alloc_errtxt, stderr);
+                    free(output);
+                    exit(1);
+                }
+                output = np;
             }
             continue;
         }else if(c < maptop){
             size_t c_len = linelen(grammar[c]);
             unsigned lineidx = rand() % c_len;
             const char *out = textgen(grammar[(unsigned)c][lineidx], grammar);
-            size_t out_sz = strlen(out);
+            size_t out_sz = strnlen(out, max_textlen);
             if(outidx + out_sz >= block_sz){
                 block_sz = outidx + out_sz <= 2*block_sz ? 2*block_sz + 1 : outidx + out_sz + 1;
-                output = realloc(output, block_sz);
+                char *np = realloc(output, block_sz);
+                if(!np){
+                    fputs(alloc_errtxt, stderr);
+                    free(output);
+                    exit(1);
+                }
+                output = np;
             }
             strncpy(output+outidx, out, out_sz);
             outidx += out_sz;

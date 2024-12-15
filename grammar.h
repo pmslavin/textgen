@@ -8,6 +8,8 @@
 #define linewidth 32
 #define mapbase 0x80
 #define mapsize 256
+#define max_textlen 1024
+#define max_symbollen 64
 #define fnv1a32_basis ((uint32_t)0x811c9dc5)
 #define fnv1a32_prime ((uint32_t)0x01000193)
 
@@ -17,10 +19,19 @@ typedef struct _symbol{
     struct _symbol *next;
 }symbol;
 
+static inline uint32_t fnv1a32_hashstr(register const char *str){
+    register uint32_t hash = fnv1a32_basis;
+    register uint8_t *oct = (uint8_t *)str;
+    while(*oct){
+        hash ^= (uint32_t)*oct++;
+        hash *= fnv1a32_prime;
+    }
+    return hash;
+}
+
 const char ***build_grammar(const char *const);
 void print_grammar(const char ***);
 void free_grammar(const char ***);
-uint32_t fnv1a32_hashstr(const char *);
 size_t symbolmap_init(symbol ***);
 void symbolmap_free(symbol **);
 void symbolmap_add(const char *, size_t);

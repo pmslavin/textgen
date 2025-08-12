@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "grammar.h"
+#include "options.h"
 #include "textgen.h"
 
 
@@ -73,13 +74,35 @@ void set_maptop(const char ***grammar){
 
 int main(int argc, char *argv[]){
 
-    const char *inputfn;
+    char *inputfn = NULL;
+    unsigned seed = 0xff;
+    unsigned count = 1;
+    int opt, optidx = 0;
 
-    if(argc >= 2){
-        inputfn = argv[1];
-    }else{
-        fputs("Input grammar required.\n", stderr);
-        exit(1);
+    char *pmname;
+	(pmname = strrchr(argv[0], '/')) ? pmname++ : (pmname = argv[0]);
+    if(argc == 1){
+        full_usage(stderr, pmname, long_options, option_descs, EXIT_FAILURE);
+	}
+
+    while((opt = getopt_long(argc, argv, optstring, long_options, &optidx)) != -1){
+        switch(opt){
+            case 'g':
+                inputfn = optarg;
+                break;
+            case 'r':
+                seed = atoi(optarg);
+                break;
+            case 'n':
+                count = atoi(optarg) > 0 ? atoi(optarg) : 1;
+                break;
+            case 'h':
+                full_usage(stdout, pmname, long_options, option_descs, EXIT_SUCCESS);
+                break;
+            default:
+                full_usage(stderr, pmname, long_options, option_descs, EXIT_FAILURE);
+                break;
+        }
     }
 
     symbolmap_init(&symbolmap);
@@ -87,13 +110,7 @@ int main(int argc, char *argv[]){
     set_maptop(grammar);
     //print_grammar(grammar);
 
-    srand(0xff);
-    unsigned count = 0;
-    if(argc > 2){
-        count = atoi(argv[2]);
-    }else{
-        count = 1;
-    }
+    srand(seed);
     for(unsigned i=0; i<count; i++){
         const char *output = textgen("\x80.", grammar);
         puts(output);

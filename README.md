@@ -1,0 +1,62 @@
+# TextGen
+
+## Overview
+
+A utility for generating "random" (but deterministic) textual output
+defined by custom grammars.
+
+This is useful in a variety of cases:
+ * Testing and Verification: Custom grammars allow text to be generated
+   which is relevant to the context being evaluated. This can include:
+     - API testing, by generating a full set of client behaviours which
+       comprehensively cover an API's facilities.
+     - User input fuzzing, by generating a complete set of possible inputs
+     - Error handling verification, by deterministically generating known
+       error cases.
+ * Prompt generation: Grammars can be constructed to serve as prompt generators
+   for generative AI, automating the exploration of a large prompt-space in
+   a structured way, for example by the presence or absence of keywords/phrases
+   in an image or video generation prompt.
+ * Dynamic text generation; simple chatbots, NPC dialogue, Elite "Goat Soup" style
+   narratives.
+
+
+## Requirements
+
+`TextGen` uses the [libjansson](https://github.com/akheron/jansson) library for JSON
+parsing.
+
+## Usage
+
+```bash
+textgen, version 0.2.1
+Usage: textgen [OPTIONS]
+    --grammar-file    -g <filename>  The grammar file to load
+    --random-seed     -r <seed>      A seed to initialise the random number generator
+    --number          -n <number>    The number of texts to generate
+    --help            -h             Print this help
+```
+
+## Grammar Definitions
+
+TBA
+
+```json
+{
+    "__start__": [
+        "{prep} {weekday} {period} {adj} {type} will {source} from the {compass}",
+        "A {odds} {chance} of {duration} of {adj} {type} exists on {weekday} {period} which will {succeed} {type} later"
+    ],
+    "prep": [ "On", "During", "Throughout"],
+    "weekday": [ "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday" ],
+    "period": [ "morning", "afternoon", "evening" ],
+    "adj": [ "light", "heavy", "intermittent", "persistent", "strong", "gentle", "occasional" ],
+    "type": [ "cloud", "rain", "hail", "sleet", "snow", "storms", "showers", "drizzle", "fog", "mist", "frost" ],
+    "source": [ "develop", "arrive", "grow", "accumulate" ],
+    "compass": [ "north", "east", "south", "west" ],
+    "chance": [ "risk", "possibility", "likelihood", "chance" ],
+    "succeed": [ "be followed by", "give way to", "be replaced by", "develop into", "become" ],
+    "odds": [ "faint", "strong", "slight", "substantial", "minor", "marked", "moderate" ],
+    "duration": [ "periods", "episodes", "spells", "outbreaks" ]
+}
+```

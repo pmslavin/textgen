@@ -3,10 +3,12 @@
 #include <string.h>
 
 #include "grammar.h"
+#include "operators.h"
 
 
 symbol **symbolmap = NULL;
 const char* start_key = "__start__";
+const char* metadata_key = "__metadata__";
 
 
 const char ***build_grammar(const char *const filename){
@@ -38,6 +40,9 @@ const char ***build_grammar(const char *const filename){
                 data = json_array_get(value, i);
                 map[mapbase][i] = strndup(json_string_value(data), max_textlen);
             }
+        }else if(strcmp(key, metadata_key) == 0){
+            /* Process metadata */
+            continue;
         }else{
             symbolmap_add(key, symidx++);
             for(size_t i=0; i<linesz; i++){
@@ -127,9 +132,9 @@ void symbolmap_add(const char *symtxt, size_t symidx){
 
     symbol **list = &symbolmap[bucket];
     while(*list){
-        //if(strcmp(symtxt, *list->symbol) == 0){
-        //    ; // err already in list
-        //}
+        if(strcmp(symtxt, (*list)->symbol) == 0){
+            return;  /* err already in list */
+        }
         list = &(*list)->next;
     }
     *list = s;
@@ -146,12 +151,12 @@ size_t symbolmap_getidx(const char *symtxt){
         }
         list = list->next;
     }
-    return 0;  // Only __start__ can have a zero symbol-index
+    return 0;  /* Only __start__ can have a zero symbol-index */
 }
 
 char **extract_symbols(const char *str){
-    const char* start = "{";
-    const char* end = "}";
+    const char *start = "{";
+    const char *end = "}";
     size_t bufsz = 32;
     if(strlen(str) == 0){
         return NULL;
@@ -192,7 +197,7 @@ char **extract_symbols(const char *str){
         goto tok_tidy_exit;
     }
     tokens[idx++] = NULL;
-    // Shrink the buffer
+    /* Shrink the buffer */
     char **np = realloc(tokens, idx*sizeof(char *));
     if(!np){
         fputs("Insufficient memory to shrink symbol buffer.\n", stderr);
@@ -224,6 +229,7 @@ char *patch_symbol_addresses(const char *text){
         return strdup(text);
     }
     size_t symidx = 0;
+    const char op_delim = ':';
     size_t txtlen = strlen(text);
     char *patched = calloc(txtlen, sizeof(char));
     if(!patched){
@@ -238,10 +244,29 @@ char *patch_symbol_addresses(const char *text){
      *  them again here in the same order.
      */
     while(symbols[symidx]){
+        char *delim_idx = NULL;
+        if((delim_idx = strchr(symbols[symidx], op_delim))){
+            char *opname = strndup(symbols[symidx], delim_idx - symbols[symidx]);
+            char *symbol = strdup(delim_idx + 1);
+            /* Copy str up to symbol into pnext */
+            char *sidx = strstr(str, opname);
+            strncpy(pnext, str, sidx-str-1);
+            pnext += sidx-str-1;
+            int idx = operator_name_to_idx(opname);
+            *pnext = (char)(idx+1);
+            pnext++;
+            /* Increment str up to symbol start */
+            str += sidx - str + strlen(opname);
+            str[0] = '{';
+
+            free(opname);
+            free(symbols[symidx]);
+            symbols[symidx] = symbol;
+        }
         size_t slen = strlen(str);
         size_t symlen = strlen(symbols[symidx]);
         size_t mapidx = symbolmap_getidx(symbols[symidx]);
-        (void)mapidx;
+        (void)mapidx;  /* May be unused */
         char *sidx = strstr(str, symbols[symidx]);
         if(!sidx){
             continue;

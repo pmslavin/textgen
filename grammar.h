@@ -6,6 +6,7 @@
 #include <jansson.h>
 
 #define linewidth 32
+#define optop 0x20
 #define mapbase 0x80
 #define mapsize 256
 #define max_textlen 1024

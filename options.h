@@ -1,5 +1,5 @@
-#ifndef __OPTIONS_H__
-#define __OPTIONS_H__
+#ifndef _OPTIONS_H_
+#define _OPTIONS_H_
 
 #include <getopt.h>
 #include <stdio.h>

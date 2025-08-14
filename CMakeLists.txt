@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
-project(textgen VERSION 0.2.1)
+project(textgen VERSION 0.3.0)
 add_compile_options(-g -Wall -Wextra -Werror -pedantic)
-add_executable(textgen textgen.c grammar.c options.c)
+add_executable(textgen textgen.c grammar.c options.c operators.c)
 target_link_libraries(textgen jansson)
+configure_file (config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/config.h @ONLY)

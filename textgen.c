@@ -5,6 +5,7 @@
 
 #include "grammar.h"
 #include "options.h"
+#include "operators.h"
 #include "textgen.h"
 
 
@@ -15,6 +16,7 @@ const char *textgen(const char *src, const char ***grammar){
     size_t idx = -1;
     size_t outidx = 0;
     size_t block_sz = 32;
+    Operator *op = NULL;
     const char* alloc_errtxt = "Insufficient memory for output.\n";
     char *output = calloc(block_sz, sizeof(char));
     if(!output){
@@ -27,7 +29,11 @@ const char *textgen(const char *src, const char ***grammar){
         if(!c){
             break;
         }
-        if(c < mapbase){
+        if(c < optop){
+            --c;  /* Stored opidx is +1 to avoid NULL */
+            op = &(operators[c]);
+            continue;
+        }else if(c < mapbase){
             output[outidx++] = c;
             if(outidx == block_sz){
                 block_sz *= 2;
@@ -43,7 +49,14 @@ const char *textgen(const char *src, const char ***grammar){
         }else if(c < maptop){
             size_t c_len = linelen(grammar[c]);
             unsigned lineidx = rand() % c_len;
-            const char *out = textgen(grammar[(unsigned)c][lineidx], grammar);
+            char *out = (char *)textgen(grammar[(unsigned)c][lineidx], grammar);
+            if(op){
+                char *op_in = strdup(out);
+                free(out);
+                char *op_out = (*op->func)(op_in);
+                op = NULL;
+                out = op_out;
+            }
             size_t out_sz = strnlen(out, max_textlen);
             if(outidx + out_sz >= block_sz){
                 block_sz = outidx + out_sz <= 2*block_sz ? 2*block_sz + 1 : outidx + out_sz + 1;

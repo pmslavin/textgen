@@ -55,6 +55,9 @@ const char *textgen(const char *src, const char ***grammar){
                 free(out);
                 char *op_out = (*op->func)(op_in);
                 op = NULL;
+                if(op_out != op_in){
+                    free(op_in);
+                }
                 out = op_out;
             }
             size_t out_sz = strnlen(out, max_textlen);

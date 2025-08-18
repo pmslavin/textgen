@@ -29,17 +29,19 @@ parsing.
 ## Usage
 
 ```bash
-textgen, version 0.3.0
+textgen, version 0.4.0
 Usage: textgen [OPTIONS]
-    --grammar-file    -g <filename>  The grammar file to load
-    --random-seed     -r <seed>      A seed to initialise the random number generator
-    --number          -n <number>    The number of texts to generate
-    --help            -h             Print this help
+    --grammar-file      -g <filename>  The grammar file to load
+    --validate-grammar  -v <filename>  The grammar file to validate
+    --random-seed       -r <seed>      A seed to initialise the random number generator
+    --number            -n <number>    The number of texts to generate
+    --help              -h             Print this help
 ```
 
 ## Grammar Definitions
 
-TBA
+Grammars are defined as json, in which builtin `operators` may be applied to user-defined
+`{symbol}`s.
 
 ```json
 {
@@ -66,4 +68,12 @@ TBA
     "duration": [ "periods", "episodes", "spells", "outbreaks" ],
     "temperature": [ "freezing", "cold", "cool", "mild", "temperate", "warm", "hot", "oppressive" ]
 }
+
+```
+```bash
+$ textgen --grammar-file grammars/weather.json --number 4
+On Sunday night strong storms will develop from the north.
+A moderate risk of periods of persistent hail exists on Wednesday evening which will give way to rain later.
+Monday morning will see freezing temperatures followed by occasional fog.
+Throughout Sunday morning heavy cloud will accumulate from the west.
 ```

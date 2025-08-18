@@ -30,7 +30,7 @@ static inline uint32_t fnv1a32_hashstr(register const char *str){
     return hash;
 }
 
-const char ***build_grammar(const char *const);
+const char ***build_grammar(json_t *);
 void print_grammar(const char ***);
 void free_grammar(const char ***);
 size_t symbolmap_init(symbol ***);
@@ -40,5 +40,7 @@ size_t symbolmap_getidx(const char *);
 char **extract_symbols(const char *);
 size_t linelen(const char **);
 char *patch_symbol_addresses(const char *);
+json_t *load_json_file(const char *const);
+char **lexical_validate_grammar(json_t *);
 
 #endif

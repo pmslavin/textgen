@@ -88,6 +88,30 @@ void set_maptop(const char ***grammar){
 }
 
 
+int validate_grammar(const char *inputfn){
+    symbolmap_init(&symbolmap);
+    json_t *root = load_json_file(inputfn);
+    char **entries = lexical_validate_grammar(root);
+    if(!entries){
+        printf("Grammar in '%s' is valid\n", inputfn);
+        symbolmap_free(symbolmap);
+        json_decref(root);
+        exit(EXIT_SUCCESS);
+    }
+    size_t entidx = 0;
+    while(entries[entidx]){
+        fprintf(stderr, "%s\n", entries[entidx++]);
+    }
+    for(size_t idx=0; entries[idx]; idx++){
+        free(entries[idx]);
+    }
+    free(entries);
+    symbolmap_free(symbolmap);
+    json_decref(root);
+    return entidx;
+}
+
+
 int main(int argc, char *argv[]){
 
     char *inputfn = NULL;
@@ -106,6 +130,10 @@ int main(int argc, char *argv[]){
             case 'g':
                 inputfn = optarg;
                 break;
+            case 'v':
+                inputfn = optarg;
+                exit(validate_grammar(inputfn));
+                break;
             case 'r':
                 seed = atoi(optarg);
                 break;
@@ -122,7 +150,8 @@ int main(int argc, char *argv[]){
     }
 
     symbolmap_init(&symbolmap);
-    const char ***grammar = build_grammar(inputfn);
+    json_t *root = load_json_file(inputfn);
+    const char ***grammar = build_grammar(root);
     set_maptop(grammar);
     //print_grammar(grammar);
 

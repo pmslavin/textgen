@@ -1,4 +1,11 @@
+#include "config.h"
 #define _POSIX_C_SOURCE 200809L  // strndup
+#ifdef USE_ASPRINTF
+  #define _GNU_SOURCE            // asprintf
+#else
+  #include <stdarg.h>
+#endif
+#include <errno.h>
 #include <stdint.h>
 #include <string.h>
 
@@ -7,18 +14,17 @@
 
 
 symbol **symbolmap = NULL;
-const char* start_key = "__start__";
-const char* metadata_key = "__metadata__";
+const char *start_key = "__start__";
+const char *metadata_key = "__metadata__";
+const char *min_version_key = "min_version";
 
 
-const char ***build_grammar(const char *const filename){
+const char ***build_grammar(json_t *root){
     const char ***map = calloc(mapsize, sizeof(char**));
     if(!map){
         fputs("Insufficient memory for grammar.\n", stderr);
         exit(1);
     }
-    json_error_t json_err = {0};
-    json_t *root = json_load_file(filename, 0, &json_err);
 
     for(size_t i=mapbase; i<mapsize; i++){
         map[i] = calloc(linewidth, sizeof(char*));
@@ -224,6 +230,13 @@ size_t linelen(const char **line){
 }
 
 char *patch_symbol_addresses(const char *text){
+    /*  Replaces symbols in a grammar with the array
+     *  offset of their memory locations.
+     *
+     *  Operators prefixing symbols are identified and
+     *  inserted into the grammar to be applied on
+     *  extraction.
+     */
     char **symbols = extract_symbols(text);
     if(!symbols){
         return strdup(text);
@@ -288,4 +301,324 @@ char *patch_symbol_addresses(const char *text){
     }
     free(symbols);
     return patched;
+}
+
+json_t *load_json_file(const char *const filename){
+    /*  Returns a json_t* representing a valid json
+     *  object defined in the <filename> arg, or NULL on
+     *  file access or json parse errors.
+     */
+    json_error_t json_err = {0};
+    json_t *root = json_load_file(filename, 0, &json_err);
+    if(!root){
+        enum json_error_code err_code = json_error_code(&json_err);
+        if(err_code == json_error_cannot_open_file){
+            fprintf(stderr, "Error loading grammar from file: %s\n", json_err.text);
+        }else{
+            fprintf(
+                stderr,
+                "Error loading grammar from file '%s' line %d, column %d: %s\n",
+                filename, json_err.line, json_err.column, json_err.text
+            );
+        }
+        return NULL;
+    }
+    return root;
+}
+
+/* qsort and bsearch in validation */
+int cmp_strcmp(const void *lhs, const void *rhs){
+    return strcmp(*(char * const *)lhs, *(char * const *)rhs);
+}
+
+#ifndef USE_ASPRINTF
+char *entry_asprintf(const char *fmt, ...){
+    /*  An allocating snprintf replacement.
+     *  Used by default unless the GNU/BSD extension asprintf
+     *  is preferred
+     */
+    int n = 0;
+    size_t size = 0;
+    char *p = NULL;
+    va_list ap;
+
+    va_start(ap, fmt);
+    n = vsnprintf(p, size, fmt, ap);
+    va_end(ap);
+
+    if(n<0){  /* glibc < 2.0.6*/
+        return NULL;
+    }
+
+    size = (size_t)n + 1;
+    p = malloc(size);
+    va_start(ap, fmt);
+    n = vsnprintf(p, size, fmt, ap);
+    va_end(ap);
+
+    if(n<0){
+        free(p);
+        return NULL;
+    }
+    return p;
+}
+#endif
+
+char **process_metadata(json_t *metadata){
+    /*  Processes metadata and records validation issues.
+     *
+     *  Only the "min_version" key of metadata is validated
+     *  to ensure that the version of textgen required by
+     *  the grammar is available.
+     *
+     *  A NULL-terminated array of strings is returned, or
+     *  NULL if no validation issues are raised.
+     */
+    size_t bufsz = 32, entidx = 0;
+    char **entries = calloc(bufsz, sizeof(char *));
+    if(!entries){
+        fprintf(stderr, "Unable to allocate metadata entry buffer");
+        exit(1);
+    }
+
+    json_t *minverk = json_object_get(metadata, min_version_key);
+    if(!minverk){
+        free(entries);
+        return NULL;  /* Other metadata is intrinsically 'valid' */
+    }
+    char *minver = strdup(json_string_value(minverk));
+    if(!minver){
+#ifdef USE_ASPRINTF
+        asprintf(&entries[entidx++], "Invalid %s in metadata", min_version_key);
+#else
+        entries[entidx++] = entry_asprintf("Invalid %s in metadata", min_version_key);
+#endif
+        goto shrink_and_ret;
+    }
+    /* Pseudo quasi partial semver support... */
+    int semver[3], idx = 0;
+    char *tok = strtok(minver, ".");
+    if(!tok){
+#ifdef USE_ASPRINTF
+        asprintf(&entries[entidx++], "Invalid %s in metadata", min_version_key);
+#else
+        entries[entidx++] = entry_asprintf("Invalid %s in metadata", min_version_key);
+#endif
+        goto shrink_and_ret;
+    }
+    errno = 0;
+    char *endptr = NULL;
+    semver[idx++] = strtol(tok, &endptr, 10);
+    if(errno != 0 ||  // Variously ERANGE on o/uflow or EINVAL
+            *endptr || endptr == tok){
+        goto report_and_cont;
+    }
+    while((tok = strtok(NULL, "."))){
+        semver[idx++] = strtol(tok, &endptr, 10);
+        if(errno != 0 ||
+                *endptr || endptr == tok ||
+                (semver[0] == 0 && semver[1] == 0 && semver[2] == 0)){
+            goto report_and_cont;
+        }
+    }
+    if(semver[0] == 0 && semver[1] == 0 && semver[2] == 0){
+        goto report_and_cont;
+    }
+    goto process_semver;
+report_and_cont:
+#ifdef USE_ASPRINTF
+    asprintf(&entries[entidx++],
+         "Metadata %s defines invalid version: %s",
+         min_version_key, json_string_value(minverk));
+#else
+    entries[entidx++] = entry_asprintf("Metadata %s defines invalid version: %s",
+                                       min_version_key, json_string_value(minverk));
+#endif
+    goto shrink_and_ret;
+process_semver:
+    if(semver[0] > PROJECT_MAJOR ||
+        (semver[0] == PROJECT_MAJOR && semver[1] > PROJECT_MINOR) ||
+        (semver[0] == PROJECT_MAJOR && (semver[1] == PROJECT_MINOR) && (semver[2] > PROJECT_MICRO))){
+#ifdef USE_ASPRINTF
+        asprintf(&entries[entidx++],
+           "Grammar requires version %s but textgen is %s",
+            json_string_value(minverk), PROJECT_VERSION);
+#else
+        entries[entidx++] = entry_asprintf("Grammar requires version %s but textgen is %s",
+                                           json_string_value(minverk), PROJECT_VERSION);
+#endif
+    }
+shrink_and_ret:
+    free(minver);
+    if(entidx == 0){
+        free(entries);
+        entries = NULL;
+    }else{
+        entries[entidx++] = NULL;
+        /* Shrink the entry buffer for return*/
+        char **np = realloc(entries, entidx*sizeof(char *));
+        if(!np){
+            fputs("Insufficient memory to shrink metadata entries buffer.\n", stderr);
+            free(entries);
+            exit(1);
+        }
+        entries = np;
+    }
+    return entries;
+}
+
+
+char **lexical_validate_grammar(json_t *json){
+    /*  This function performs a lexical validation of its json
+     *  argument; that is, it considers the grammar specified in the
+     *  file at the level of strings, without constructing a grammar
+     *  instance or the symbol hash table. This duplicates some costs
+     *  and saves on others, but importantly allows the validation to
+     *  be run independently of grammar construction.
+     *
+     *  It checks that:
+     *   - Grammars are valid json, implied by load_json_file()
+     *   - A valid __start__ symbol is defined
+     *   - Every symbol used in a grammar has a definition
+     *   - Every operator used in a grammar has a definition
+     *   - TBA The total number of symbols does not exceed a limit
+     *   - TBA The number of alternates per symbols does not exceed a limit
+     *
+     *   Separate validation of any metadata min_version is
+     *   performed by process_metadata.
+     *
+     *   A null-terminated array of strings is returned, or NULL
+     *   if the grammar validates correctly.
+     */
+    size_t key_count = json_object_size(json);
+    if(key_count == 0){
+        return NULL;
+    }
+    char **keys = malloc(key_count * sizeof(char *));
+    if(!keys){
+        fprintf(stderr, "Unable to allocate for %zu keys\n", key_count);
+        exit(1);
+    }
+    size_t bufsz = 32, entidx = 0;
+    char **entries = calloc(bufsz, sizeof(char *));
+    if(!entries){
+        fprintf(stderr, "Unable to allocate entry buffer\n");
+        for(size_t idx=0; idx<key_count; idx++){
+            free(keys[idx]);
+        }
+        free(keys);
+        exit(1);
+    }
+
+    const char *key = NULL;
+    json_t *value = NULL;
+    size_t idx = 0;
+
+    json_object_foreach(json, key, value){
+        keys[idx++] = strdup((char *)key);  /* keys freed prior to return */
+    }
+
+    qsort(keys, key_count, sizeof(char *), cmp_strcmp);
+
+    if(!bsearch(&start_key, keys, key_count, sizeof(char *), cmp_strcmp)){
+#ifdef USE_ASPRINTF
+        asprintf(&entries[entidx++], "Grammar has no entrypoint. Please define a %s key.", start_key);
+#else
+        entries[entidx++] = entry_asprintf("Grammar has no entrypoint. Please define a %s key.", start_key);
+#endif
+    }
+    const char op_delim = ':';
+
+    json_object_foreach(json, key, value){
+        if(!strcmp(key, metadata_key)){
+            char **md_entries = process_metadata(value);
+            if(md_entries){
+                for(size_t idx=0; md_entries[idx]; idx++){
+                    entries[entidx++] = md_entries[idx];
+                    /* Handle bufsz */
+                }
+                free(md_entries);
+            }
+        }
+        size_t linesz = json_array_size(value);
+        json_t *data = NULL;
+        for(size_t i=0; i<linesz; i++){
+            data = json_array_get(value, i);
+            char **symbols = extract_symbols(json_string_value(data));
+            if(!symbols){
+                continue;
+            }
+            size_t symidx = 0;
+
+            while(symbols[symidx]){
+                char *symbol = NULL;
+                char *delim = NULL, *sym_txt = NULL, *op_txt = NULL;
+                /* Detect {op:sym} constructs and parse */
+                if((delim = strchr(symbols[symidx], op_delim))){
+                    size_t symlen = strlen(symbols[symidx]);
+                    *delim = 0;  /* Null-terminate what becomes op_txt */
+                    op_txt = symbols[symidx];
+                    /* The symbol itself is a new alloc... */
+                    sym_txt = strndup(delim+1, symlen-(delim-op_txt));
+                    int op_idx = operator_name_to_idx(op_txt);
+                    if(op_idx == -1){
+#ifdef USE_ASPRINTF
+                        asprintf(&entries[entidx++], "Invalid operator: %s used in {%s}", op_txt, key);
+#else
+                        entries[entidx++] = entry_asprintf("Invalid operator: %s used in {%s}", op_txt, key);
+#endif
+                    }
+                    /* ...which replaces the composite {op:sym} */
+                    symbol = sym_txt;
+                }else{
+                    symbol = symbols[symidx];
+                }
+                if(!bsearch(&symbol, keys, key_count, sizeof(char *), cmp_strcmp)){
+#ifdef USE_ASPRINTF
+                    asprintf(&entries[entidx++], "Undefined symbol {%s} used in {%s}", symbol, key);
+#else
+                    entries[entidx++] = entry_asprintf("Undefined symbol {%s} used in {%s}", symbol, key);
+#endif
+                }
+                if(sym_txt){
+                    free(sym_txt);  /* Otherwise freed with symbols prior to return */
+                }
+                if(entidx >= bufsz-5){
+                    bufsz *= 2;
+                    char **nent = realloc(entries, bufsz*sizeof(char *));
+                    if(!nent){
+                        fputs("Insufficient memory to grow validation entry buffer.", stderr);
+                        free(entries);
+                        exit(1);
+                    }
+                    entries = nent;
+                }
+                symidx++;
+            }
+            for(size_t idx=0; symbols[idx]; idx++){
+                free(symbols[idx]);
+            }
+            free(symbols);
+        }
+    }
+    for(size_t idx=0; idx<key_count; idx++){
+        free(keys[idx]);
+    }
+    free(keys);
+
+    if(entidx == 0){
+        free(entries);
+        entries = NULL;
+    }else{
+        entries[entidx++] = NULL;
+        /* Shrink the entry buffer for return*/
+        char **np = realloc(entries, entidx*sizeof(char *));
+        if(!np){
+            fputs("Insufficient memory to shrink validation entries buffer.\n", stderr);
+            free(entries);
+            exit(1);
+        }
+        entries = np;
+    }
+    return entries;
 }

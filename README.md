@@ -29,13 +29,15 @@ parsing.
 ## Usage
 
 ```bash
-textgen, version 0.4.0
+textgen, version 0.5.0
 Usage: textgen [OPTIONS]
-    --grammar-file      -g <filename>  The grammar file to load
-    --validate-grammar  -v <filename>  The grammar file to validate
-    --random-seed       -r <seed>      A seed to initialise the random number generator
-    --number            -n <number>    The number of texts to generate
-    --help              -h             Print this help
+    --grammar-file      -g <filename>    The grammar file to load
+    --validate-grammar  -v <filename>    The grammar file to validate
+    --random-seed       -s <seed>        A seed to initialise the random number generator
+    --number            -n <number>      The number of texts to generate
+    --random-generator  -G <generator>   The random generator to use
+    --list-generators   -L               List the available random generators
+    --help              -h               Print this help
 ```
 
 ## Grammar Definitions
@@ -70,10 +72,23 @@ Grammars are defined as json, in which builtin `operators` may be applied to use
 }
 
 ```
+This grammar may then be used to generate texts as follows:
 ```bash
 $ textgen --grammar-file grammars/weather.json --number 4
 On Sunday night strong storms will develop from the north.
 A moderate risk of periods of persistent hail exists on Wednesday evening which will give way to rain later.
 Monday morning will see freezing temperatures followed by occasional fog.
 Throughout Sunday morning heavy cloud will accumulate from the west.
+```
+
+## Random Number Generators
+
+A variety of random number generators may be selected.
+```bash
+$ ./build/textgen -L
+NAME        SEED        DESCRIPTION
+rand        %x          The stdlib rand() function, initialised by srand().
+constant    %x          Returns a constant value determined by its seed.
+cycle       %x:%x       Repeatedly cycles from start_seed to end_seed-1.
+pisano16    %x:%x:%x    A 16-bit Pisano period generalised Fibonacci generator
 ```

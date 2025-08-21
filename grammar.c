@@ -327,12 +327,12 @@ json_t *load_json_file(const char *const filename){
 }
 
 /* qsort and bsearch in validation */
-int cmp_strcmp(const void *lhs, const void *rhs){
+static int cmp_strcmp(const void *lhs, const void *rhs){
     return strcmp(*(char * const *)lhs, *(char * const *)rhs);
 }
 
 #ifndef USE_ASPRINTF
-char *entry_asprintf(const char *fmt, ...){
+static char *entry_asprintf(const char *fmt, ...){
     /*  An allocating snprintf replacement.
      *  Used by default unless the GNU/BSD extension asprintf
      *  is preferred

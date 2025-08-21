@@ -4,9 +4,10 @@
 #include <string.h>
 
 #include "grammar.h"
-#include "options.h"
 #include "operators.h"
+#include "options.h"
 #include "textgen.h"
+#include "randfunc_ops.h"
 
 
 extern symbol **symbolmap;
@@ -48,7 +49,7 @@ const char *textgen(const char *src, const char ***grammar){
             continue;
         }else if(c < maptop){
             size_t c_len = linelen(grammar[c]);
-            unsigned lineidx = rand() % c_len;
+            unsigned lineidx = rand_func() % c_len;
             char *out = (char *)textgen(grammar[(unsigned)c][lineidx], grammar);
             if(op){
                 char *op_in = strdup(out);
@@ -115,9 +116,9 @@ int validate_grammar(const char *inputfn){
 int main(int argc, char *argv[]){
 
     char *inputfn = NULL;
-    unsigned seed = 0xff;
+    char **gen_names = NULL;
     unsigned count = 1;
-    int opt, optidx = 0;
+    int opt, rgret, idx = 0, optidx = 0;
 
     char *pmname;
 	(pmname = strrchr(argv[0], '/')) ? pmname++ : (pmname = argv[0]);
@@ -127,20 +128,40 @@ int main(int argc, char *argv[]){
 
     while((opt = getopt_long(argc, argv, optstring, long_options, &optidx)) != -1){
         switch(opt){
-            case 'g':
+            case 'g':  /* Grammar file */
                 inputfn = optarg;
                 break;
-            case 'v':
+            case 'v':  /* Validate gramamr file */
                 inputfn = optarg;
                 exit(validate_grammar(inputfn));
                 break;
-            case 'r':
-                seed = atoi(optarg);
+            case 's':  /* Random seed */
+                seed_random_func(optarg);
                 break;
-            case 'n':
+            case 'n':  /* Number of texts to generate */
                 count = atoi(optarg) > 0 ? atoi(optarg) : 1;
                 break;
-            case 'h':
+            case 'G':  /* Random generator to use */
+                rgret = set_random_func(optarg);
+                if(rgret){
+                    fprintf(stderr, "Unable to set random generator %s\n", optarg);
+                    exit(EXIT_FAILURE);
+                }
+                break;
+            case 'L':  /* List available random generators */
+                gen_names = list_random_generators();
+                idx = 0;
+                while(gen_names[idx]){
+                    puts(gen_names[idx]);
+                    idx++;
+                }
+                for(idx=0; gen_names[idx]; idx++){
+                    free(gen_names[idx]);
+                }
+                free(gen_names);
+                exit(EXIT_SUCCESS);
+                break;
+            case 'h':  /* Help */
                 full_usage(stdout, pmname, long_options, option_descs, EXIT_SUCCESS);
                 break;
             default:
@@ -155,7 +176,6 @@ int main(int argc, char *argv[]){
     set_maptop(grammar);
     //print_grammar(grammar);
 
-    srand(seed);
     for(unsigned i=0; i<count; i++){
         const char *output = textgen("\x80.", grammar);
         puts(output);
@@ -164,5 +184,5 @@ int main(int argc, char *argv[]){
 
     free_grammar(grammar);
     symbolmap_free(symbolmap);
-    return 0;
+    return EXIT_SUCCESS;
 }

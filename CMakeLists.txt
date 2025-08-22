@@ -3,7 +3,7 @@ include(CheckFunctionExists)
 
 set(PROJECT_MAJOR 0)
 set(PROJECT_MINOR 5)
-set(PROJECT_MICRO 0)
+set(PROJECT_MICRO 5)
 project(textgen VERSION ${PROJECT_MAJOR}.${PROJECT_MINOR}.${PROJECT_MICRO})
 
 add_compile_options(-g -Wall -Wextra -Werror -pedantic)

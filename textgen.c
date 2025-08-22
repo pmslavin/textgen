@@ -172,6 +172,18 @@ int main(int argc, char *argv[]){
 
     symbolmap_init(&symbolmap);
     json_t *root = load_json_file(inputfn);
+    char **entries = lexical_validate_grammar(root);
+    if(entries){
+        size_t entidx = 0;
+        while(entries[entidx]){
+            fprintf(stderr, "%s\n", entries[entidx]);
+            free(entries[entidx++]);
+        }
+        free(entries);
+        symbolmap_free(symbolmap);
+        json_decref(root);
+        exit(EXIT_FAILURE);
+    }
     const char ***grammar = build_grammar(root);
     set_maptop(grammar);
     //print_grammar(grammar);

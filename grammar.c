@@ -20,6 +20,11 @@ const char *min_version_key = "min_version";
 
 
 const char ***build_grammar(json_t *root){
+    /*  Builds the grammar represented by the json <root> arg.
+     *
+     *  Note that all routes call json_decref and invalidate
+     *  the <root> argument.
+     */
     const char ***map = calloc(mapsize, sizeof(char**));
     if(!map){
         fputs("Insufficient memory for grammar.\n", stderr);
@@ -39,20 +44,38 @@ const char ***build_grammar(json_t *root){
     unsigned mapidx = mapbase;
     size_t symidx = 1, line_len = 0;
     json_object_foreach(root, key, value){
+        if(strcmp(key, metadata_key) == 0){
+            /* Process metadata */
+            continue;
+        }
         json_t *data = NULL;
+        if(!json_is_array(value)){
+            fprintf(stderr, "Invalid definition of '%s' value must be an array, not: %s\n",
+                    key, json_string_value(value));
+            goto gram_tidy_exit;
+        }
         size_t linesz = json_array_size(value);
+        if(linesz == 0){
+            fprintf(stderr, "Invalid definition of '%s': array may not be empty\n", key);
+            goto gram_tidy_exit;
+        }
         if(strcmp(key, start_key) == 0){
             for(size_t i=0; i<linesz; i++){
                 data = json_array_get(value, i);
+                if(!json_is_string(data)){
+                    fprintf(stderr, "Invalid value in '%s' at index %zu\n", start_key, i);
+                    goto gram_tidy_exit;
+                }
                 map[mapbase][i] = strndup(json_string_value(data), max_textlen);
             }
-        }else if(strcmp(key, metadata_key) == 0){
-            /* Process metadata */
-            continue;
         }else{
             symbolmap_add(key, symidx++);
             for(size_t i=0; i<linesz; i++){
                 data = json_array_get(value, i);
+                if(!json_is_string(data)){
+                    fprintf(stderr, "Invalid value in '%s' at index %zu\n", key, i);
+                    goto gram_tidy_exit;
+                }
                 map[mapidx][i] = strndup(json_string_value(data), max_textlen);
             }
         }
@@ -71,6 +94,11 @@ const char ***build_grammar(json_t *root){
         }
     }
     return map;
+gram_tidy_exit:
+    json_decref(root);
+    free_grammar(map);
+    symbolmap_free(symbolmap);
+    exit(EXIT_FAILURE);
 }
 
 void print_grammar(const char ***grammar){
@@ -539,11 +567,30 @@ char **lexical_validate_grammar(json_t *json){
                 }
                 free(md_entries);
             }
+            continue;  /* No further processing of metadata */
+        }
+        if(!json_is_array(value)){
+#ifdef USE_ASPRINTF
+            asprintf(&entries[entidx++], "Invalid definition of '%s' value must be an array, not: %s",
+                    key, json_string_value(value));
+#else
+            entries[entidx++] = entry_asprintf("Invalid definition of '%s' value must be an array, not: %s",
+                    key, json_string_value(value));
+#endif
+            continue;
         }
         size_t linesz = json_array_size(value);
         json_t *data = NULL;
         for(size_t i=0; i<linesz; i++){
             data = json_array_get(value, i);
+            if(!json_is_string(data)){
+#ifdef USE_ASPRINTF
+                asprintf(&entries[entidx++], "Invalid value in '%s' at index %zu", key, i);
+#else
+                entries[entidx++] = entry_asprintf("Invalid value in '%s' at index %zu", key, i);
+#endif
+                continue;
+            }
             char **symbols = extract_symbols(json_string_value(data));
             if(!symbols){
                 continue;

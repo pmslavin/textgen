@@ -3,7 +3,7 @@
 
 /* constant */
 #define rg_constant_name "constant"
-#define rg_constant_seedfmt "%x"
+#define rg_constant_seedfmt "%u"
 #define rg_constant_desc "Returns a constant value determined by its seed."
 extern int rg_constant_state;
 int rg_constant(void);
@@ -11,7 +11,7 @@ int rg_constant_seedfn(const char *, const char *);
 
 /* cycle */
 #define rg_cycle_name "cycle"
-#define rg_cycle_seedfmt "%x:%x"
+#define rg_cycle_seedfmt "%u:%u"
 #define rg_cycle_desc "Repeatedly cycles from start_seed to end_seed-1."
 extern unsigned rg_cycle_start;
 extern unsigned rg_cycle_mod;

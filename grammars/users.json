@@ -1,0 +1,17 @@
+{
+    "__metadata__": {
+        "title": "Users",
+        "description": "A grammar to generate json user profiles",
+        "min_version": "0.6.0"
+    },
+    "__start__": [
+        "{\"user\": \"{name}\", \"id\": \"{seq:$5d}\", \"role_id\": {range:$1,9}, \"dob\": \"{date:$1920-01-01,2009-12-31}\"}"
+    ],
+    "name": [ "{capitalise:letter}{capitalise:letter} {capitalise:npref0}{nsuff}",
+	      "{capitalise:letter}{capitalise:letter} {capitalise:npref0}{npref1}{nsuff}"],
+    "letter": [ "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y" ],
+    "digit": [ "0", "1", "2", "3", "4", "5", "6", "7", "8", "9" ],
+    "npref0": [ "bau", "hen", "tar", "ran", "lar", "whit", "dan", "bur", "mar", "new" ],
+    "npref1": [ "un", "san", "ban", "orm", "bin", "ol", "fer", "sim", "in", "en" ],
+    "nsuff": [ "ham", "burn", "ton", "son", "dale", "ing", "field", "well", "hold" ]
+}

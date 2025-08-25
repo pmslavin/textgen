@@ -20,6 +20,12 @@ This is useful in a variety of cases:
  * Dynamic text generation; simple chatbots, NPC dialogue, Elite "Goat Soup" style
    narratives.
 
+The random number generator may be selected from several alternatives with different
+characteristics, see [here](#random-number-generators).
+
+Several `operators` are available to modify symbols and generate values within text,
+see [here](#operators).
+
 
 ## Requirements
 
@@ -29,10 +35,11 @@ parsing.
 ## Usage
 
 ```bash
-textgen, version 0.5.0
+textgen, version 0.6.0
 Usage: textgen [OPTIONS]
     --grammar-file      -g <filename>    The grammar file to load
     --validate-grammar  -v <filename>    The grammar file to validate
+    --line-separator    -S <character>   A character used to separate output lines
     --random-seed       -s <seed>        A seed to initialise the random number generator
     --number            -n <number>      The number of texts to generate
     --random-generator  -G <generator>   The random generator to use
@@ -81,11 +88,50 @@ Monday morning will see freezing temperatures followed by occasional fog.
 Throughout Sunday morning heavy cloud will accumulate from the west.
 ```
 
+### Operators
+
+A more complicated grammar illustrates the use of several "operators" to modify symbols
+and generate structured values with the text.
+
+```json
+{
+    "__metadata__": {
+        "title": "Users",
+        "description": "A grammar to generate json user profiles",
+        "min_version": "0.6.0"
+    },
+    "__start__": [
+        "{\"user\": \"{name}\", \"id\": \"{seq:$5d}\", \"role_id\": {range:$1,9}, \"dob\": \"{date:$1920-01-01,2009-12-31}\"}"
+    ],
+    "name": [ "{capitalise:letter}{capitalise:letter} {capitalise:npref0}{nsuff}",
+              "{capitalise:letter}{capitalise:letter} {capitalise:npref0}{npref1}{nsuff}"],
+    "letter": [ "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y" ],
+    "digit": [ "0", "1", "2", "3", "4", "5", "6", "7", "8", "9" ],
+    "npref0": [ "bau", "hen", "tar", "ran", "lar", "whit", "dan", "bur", "mar", "new" ],
+    "npref1": [ "un", "san", "ban", "orm", "bin", "ol", "fer", "sim", "in", "en" ],
+    "nsuff": [ "ham", "burn", "ton", "son", "dale", "ing", "field", "well", "hold" ]
+}
+```
+
+This may then be used to generate user-account-style text in the following way:
+
+```bash
+$ textgen --grammar-file grammars/users.json -n 8 -S,
+{"user": "CP Ranwell", "id": "00000", "role_id": 3, "dob": "1932-10-23"},
+{"user": "PJ Ranferfield", "id": "00001", "role_id": 3, "dob": "1972-5-12"},
+{"user": "EH Baubandale", "id": "00002", "role_id": 4, "dob": "1975-6-13"},
+{"user": "TR Ranwell", "id": "00003", "role_id": 4, "dob": "1972-10-31"},
+{"user": "JM Marbinton", "id": "00004", "role_id": 3, "dob": "2003-11-2"},
+{"user": "XM Baudale", "id": "00005", "role_id": 2, "dob": "1935-10-25"},
+{"user": "FV Newdale", "id": "00006", "role_id": 2, "dob": "1974-4-13"},
+{"user": "RJ Larfield", "id": "00007", "role_id": 7, "dob": "1927-1-3"}
+```
+
 ## Random Number Generators
 
 A variety of random number generators may be selected.
 ```bash
-$ ./build/textgen -L
+$ textgen -L
 NAME        SEED        DESCRIPTION
 rand        %x          The stdlib rand() function, initialised by srand().
 constant    %x          Returns a constant value determined by its seed.

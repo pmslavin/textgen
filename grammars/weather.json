@@ -5,9 +5,9 @@
         "min_version": "0.3.0"
     },
     "__start__": [
-	"{capitalise:prep} {weekday} {period} {adj} {type} will {source} from the {compass}",
-	"A {odds} {chance} of {duration} of {adj} {type} exists on {weekday} {period} which will {succeed} {type} later",
-	"{weekday} {period} will see {temperature} temperatures followed by {adj} {type}"
+	"{capitalise:prep} {weekday} {period} {adj} {type} will {source} from the {compass}.",
+	"A {odds} {chance} of {duration} of {adj} {type} exists on {weekday} {period} which will {succeed} {type} later.",
+	"{weekday} {period} will see {temperature} temperatures followed by {adj} {type}."
     ],
     "prep": [ "on", "during", "throughout"],
     "weekday": [ "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday" ],

@@ -290,19 +290,26 @@ char *patch_symbol_addresses(const char *text){
             char *opname = strndup(symbols[symidx], delim_idx - symbols[symidx]);
             char *symbol = strdup(delim_idx + 1);
             /* Copy str up to symbol into pnext */
-            char *sidx = strstr(str, opname);
-            strncpy(pnext, str, sidx-str-1);
-            pnext += sidx-str-1;
+            char *delim_opname = malloc((strlen(opname)+2)*sizeof(char));
+            snprintf(delim_opname, strlen(opname)+2, "%c%s", '{', opname);
+            char *sidx = strstr(str, delim_opname);
+            free(delim_opname);
+            strncpy(pnext, str, sidx-str);
+            pnext += sidx-str;
             int idx = operator_name_to_idx(opname);
             *pnext = (char)(idx+1);
             pnext++;
             /* Increment str up to symbol start */
-            str += sidx - str + strlen(opname);
+            str += sidx - str + 1 + strlen(opname);
             str[0] = '{';
 
             free(opname);
             free(symbols[symidx]);
             symbols[symidx] = symbol;
+        }
+        if(symbols[symidx][0] == '$'){
+            symidx++;
+            continue;
         }
         size_t slen = strlen(str);
         size_t symlen = strlen(symbols[symidx]);
@@ -620,12 +627,14 @@ char **lexical_validate_grammar(json_t *json){
                 }else{
                     symbol = symbols[symidx];
                 }
-                if(!bsearch(&symbol, keys, key_count, sizeof(char *), cmp_strcmp)){
+                if(!(symbol[0] == '$')){
+                    if(!bsearch(&symbol, keys, key_count, sizeof(char *), cmp_strcmp)){
 #ifdef USE_ASPRINTF
-                    asprintf(&entries[entidx++], "Undefined symbol {%s} used in {%s}", symbol, key);
+                        asprintf(&entries[entidx++], "Undefined symbol {%s} used in {%s}", symbol, key);
 #else
-                    entries[entidx++] = entry_asprintf("Undefined symbol {%s} used in {%s}", symbol, key);
+                        entries[entidx++] = entry_asprintf("Undefined symbol {%s} used in {%s}", symbol, key);
 #endif
+                    }
                 }
                 if(sym_txt){
                     free(sym_txt);  /* Otherwise freed with symbols prior to return */

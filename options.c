@@ -2,11 +2,12 @@
 #include "options.h"
 
 
-const char *optstring = "g:v:s:n:G:Lh";
+const char *optstring = "g:v:S:s:n:G:Lh";
 
 struct option long_options[] = {
     {"grammar-file",     required_argument, NULL, 'g'},
     {"validate-grammar", required_argument, NULL, 'v'},
+    {"line-separator",   required_argument, NULL, 'S'},
     {"random-seed",      required_argument, NULL, 's'},
     {"number",           required_argument, NULL, 'n'},
     {"random-generator", required_argument, NULL, 'G'},
@@ -19,6 +20,7 @@ struct option long_options[] = {
 const char *option_descs[][2] = {
    {"<filename>", "The grammar file to load"},
    {"<filename>", "The grammar file to validate"},
+   {"<character>", "A character used to separate output lines"},
    {"<seed>", "A seed to initialise the random number generator"},
    {"<number>", "The number of texts to generate"},
    {"<generator>", "The random generator to use"},

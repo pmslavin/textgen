@@ -22,7 +22,7 @@ const char *textgen(const char *src, const char ***grammar){
     char *output = calloc(block_sz, sizeof(char));
     if(!output){
         fputs(alloc_errtxt, stderr);
-        exit(1);
+        return NULL;
     }
 
     while(1){
@@ -32,8 +32,45 @@ const char *textgen(const char *src, const char ***grammar){
         }
         if(c < optop){
             --c;  /* Stored opidx is +1 to avoid NULL */
-            op = &(operators[c]);
+            op = &operators[c];
             continue;
+        }else if(op && c == '{'){  /* There is an operator and this is its arg */
+            /* Copy the full symbol from src... */
+            char *s = (char *)&src[idx];
+            while(src[idx++] != '}');  /* one beyond... */
+            size_t off = &src[--idx] - s;  /* ..so dec */
+            /* ...as a null-term string... */
+            char *p = malloc((off + 1)*sizeof(char));
+            memcpy(p, s, off);
+            p[off] = '\0';
+            /* ...and then pass to the operator. */
+            char *out = (*op->func)(p+1);
+            free(p);
+            if(!out){
+                /* Operator unable to operate.
+                 * Op func displays relevant err so
+                 * we just tidy and return here.
+                 */
+                free(output);
+                return NULL;
+            }
+
+            size_t out_sz = strnlen(out, max_textlen);
+            if(outidx + out_sz >= block_sz){
+                block_sz = outidx + out_sz <= 2*block_sz ? 2*block_sz + 1 : outidx + out_sz + 1;
+                char *np = realloc(output, block_sz);
+                if(!np){
+                    fputs(alloc_errtxt, stderr);
+                    free(output);
+                    return NULL;
+                }
+                output = np;
+            }
+            strncpy(output+outidx, out, out_sz);
+            outidx += out_sz;
+            free((char *)out);
+            continue;
+
         }else if(c < mapbase){
             output[outidx++] = c;
             if(outidx == block_sz){
@@ -42,7 +79,7 @@ const char *textgen(const char *src, const char ***grammar){
                 if(!np){
                     fputs(alloc_errtxt, stderr);
                     free(output);
-                    exit(1);
+                    return NULL;
                 }
                 output = np;
             }
@@ -61,6 +98,10 @@ const char *textgen(const char *src, const char ***grammar){
                 }
                 out = op_out;
             }
+            if(!out){
+                free(output);
+                return NULL;
+            }
             size_t out_sz = strnlen(out, max_textlen);
             if(outidx + out_sz >= block_sz){
                 block_sz = outidx + out_sz <= 2*block_sz ? 2*block_sz + 1 : outidx + out_sz + 1;
@@ -68,7 +109,7 @@ const char *textgen(const char *src, const char ***grammar){
                 if(!np){
                     fputs(alloc_errtxt, stderr);
                     free(output);
-                    exit(1);
+                    return NULL;
                 }
                 output = np;
             }
@@ -117,6 +158,7 @@ int main(int argc, char *argv[]){
 
     char *inputfn = NULL;
     char **gen_names = NULL;
+    char *sepchar = NULL;
     unsigned count = 1;
     int opt, rgret, idx = 0, optidx = 0;
 
@@ -134,6 +176,9 @@ int main(int argc, char *argv[]){
             case 'v':  /* Validate gramamr file */
                 inputfn = optarg;
                 exit(validate_grammar(inputfn));
+                break;
+            case 'S':  /* Line separator char */
+                sepchar = optarg;
                 break;
             case 's':  /* Random seed */
                 seed_random_func(optarg);
@@ -189,12 +234,19 @@ int main(int argc, char *argv[]){
     //print_grammar(grammar);
 
     for(unsigned i=0; i<count; i++){
-        const char *output = textgen("\x80.", grammar);
-        puts(output);
+        const char *output = textgen("\x80", grammar);
+        if(!output){
+            goto tg_tidy_exit;
+        }
+        printf("%s%s\n", output, (sepchar && i<count-1) ? sepchar : "");
         free((char *)output);
     }
 
     free_grammar(grammar);
     symbolmap_free(symbolmap);
     return EXIT_SUCCESS;
+tg_tidy_exit:
+    free_grammar(grammar);
+    symbolmap_free(symbolmap);
+    return EXIT_FAILURE;
 }
